@@ -19,12 +19,20 @@ func (s *Service) AddPet(ctx context.Context, principal Principal, input Pet) (P
 	if ownerID == 0 || principal.Role != RoleAdmin {
 		ownerID = principal.UserID
 	}
-	result, err := s.store.db.ExecContext(ctx, `INSERT INTO pets(pet_name,pet_type,breed,age,weight,health_status,special_requirements,avatar,owner_id,create_time,update_time) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, input.Name, input.Type, input.Breed, input.Age, input.Weight, input.HealthStatus, input.SpecialRequirements, input.Avatar, ownerID, now, now)
+	tx, err := s.store.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
-		return Pet{}, petWriteError(err)
+		return Pet{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	result, err := tx.ExecContext(ctx, `INSERT INTO pets(pet_name,pet_type,breed,age,weight,health_status,special_requirements,avatar,owner_id,create_time,update_time) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, input.Name, input.Type, input.Breed, input.Age, input.Weight, input.HealthStatus, input.SpecialRequirements, input.Avatar, ownerID, now, now)
+	if err != nil {
+		return Pet{}, translateServiceError(err)
 	}
 	id, err := result.LastInsertId()
 	if err != nil {
+		return Pet{}, err
+	}
+	if err := tx.Commit(); err != nil {
 		return Pet{}, err
 	}
 	return s.GetPet(ctx, principal, id)
