@@ -25,13 +25,6 @@ type User struct {
 	UpdatedAt time.Time `json:"updateTime"`
 }
 
-func petWriteError(err error) error {
-	if err == nil {
-		return nil
-	}
-	return fmt.Errorf("persist pet: %v", err)
-}
-
 type Pet struct {
 	ID                  int64     `json:"petId"`
 	Name                string    `json:"petName"`
